@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="אקווריום">
+<meta name="theme-color" content="#071e2b">
+<title>🐠 אקווריום מנג׳ר</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #071e2b;
+  --surface:  #0d2f42;
+  --card:     #0f3a52;
+  --border:   rgba(64,224,255,0.13);
+  --blue:     #40e0ff;
+  --green:    #4dbe78;
+  --yellow:   #ffb347;
+  --red:      #ff4466;
+  --purple:   #b47fff;
+  --sand:     #c8a96e;
+  --white:    #eef8ff;
+  --muted:    rgba(238,248,255,0.45);
+  --radius:   16px;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html { font-size:15px; }
+body {
+  font-family:'Heebo',sans-serif;
+  background: var(--bg);
+  color: var(--white);
+  min-height:100vh;
+  padding-bottom: 80px;
+}
+
+/* NAV */
+.nav {
+  position: sticky; top:0; z-index:100;
+  background: rgba(7,30,43,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 14px 20px;
+}
+.nav-title { font-size:17px; font-weight:900; letter-spacing:-0.3px; }
+.nav-title span { color: var(--blue); }
+.nav-date { font-size:12px; color: var(--muted); }
+
+/* TABS */
+.tabs {
+  display:flex; gap:6px;
+  padding: 16px 16px 0;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar { display:none; }
+.tab {
+  flex-shrink:0;
+  padding: 8px 16px;
+  border-radius:30px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family:'Heebo',sans-serif;
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+  transition: all 0.2s;
+}
+.tab.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--bg);
+}
+
+/* PAGES */
+.page { display:none; padding:16px; }
+.page.active { display:block; }
+
+/* TODAY */
+.today-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px;
+}
+.today-title { font-size:20px; font-weight:900; }
+.today-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+.progress-ring-wrap { position:relative; width:64px; height:64px; }
+.progress-ring-wrap svg { transform:rotate(-90deg); }
+.progress-ring-bg { fill:none; stroke: var(--surface); stroke-width:5; }
+.progress-ring-fill { fill:none; stroke: var(--blue); stroke-width:5; stroke-linecap:round; transition: stroke-dashoffset 0.5s; }
+.progress-pct {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; font-weight:900; color:var(--blue);
+}
+
+.task-list { display:flex; flex-direction:column; gap:10px; }
+.task-item {
+  display:flex; align-items:center; gap:14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor:pointer;
+  transition: all 0.2s;
+  position:relative;
+  overflow:hidden;
+}
+.task-item::before {
+  content:'';
+  position:absolute; right:0; top:0; bottom:0;
+  width:3px;
+}
+.task-item.co2::before    { background: var(--green); }
+.task-item.light::before  { background: var(--yellow); }
+.task-item.water::before  { background: var(--blue); }
+.task-item.feed::before   { background: var(--red); }
+.task-item.micro::before  { background: var(--green); }
+.task-item.macro::before  { background: var(--sand); }
+.task-item.additive::before { background: var(--purple); }
+
+.task-item.done {
+  opacity:0.5;
+  background: var(--surface);
+}
+.task-item.done .task-name { text-decoration: line-through; }
+
+.task-check {
+  width:28px; height:28px; flex-shrink:0;
+  border-radius:50%;
+  border: 2px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px;
+  transition: all 0.2s;
+  background: transparent;
+}
+.task-item.done .task-check {
+  background: var(--green);
+  border-color: var(--green);
+}
+.task-icon { font-size:22px; flex-shrink:0; }
+.task-info { flex:1; }
+.task-name { font-size:15px; font-weight:700; }
+.task-detail { font-size:12px; color:var(--muted); margin-top:2px; }
+.task-time {
+  font-size:11px; font-weight:700;
+  color: var(--blue);
+  background: rgba(64,224,255,0.1);
+  padding:3px 8px; border-radius:20px;
+  flex-shrink:0;
+}
+
+.done-stamp {
+  font-size:11px; color: var(--green);
+  font-weight:700; margin-top:4px;
+}
+
+/* SECTION LABEL */
+.section-label {
+  font-size:10px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase;
+  color: var(--blue); margin:20px 0 10px;
+  display:flex; align-items:center; gap:8px;
+}
+.section-label::after {
+  content:''; flex:1; height:1px;
+  background: linear-gradient(to left, transparent, var(--border));
+}
+
+/* STREAK */
+.streak-bar {
+  display:flex; gap:6px; align-items:center;
+  background: var(--card);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  padding:14px 16px;
+  margin-bottom:16px;
+}
+.streak-icon { font-size:28px; }
+.streak-info { flex:1; }
+.streak-num { font-size:26px; font-weight:900; color:var(--yellow); line-height:1; }
+.streak-label { font-size:12px; color:var(--muted); }
+.streak-days { display:flex; gap:5px; margin-top:10px; }
+.streak-dot {
+  width:10px; height:10px; border-radius:50%;
+  background: var(--surface); border:1px solid var(--border);
+}
+.streak-dot.done { background: var(--green); border-color:var(--green); }
+.streak-dot.today { background: var(--blue); border-color:var(--blue); }
+
+/* HISTORY */
+.history-list { display:flex; flex-direction:column; gap:8px; }
+.history-item {
+  background: var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px 14px;
+  display:flex; align-items:center; gap:12px;
+}
+.history-icon { font-size:20px; }
+.history-info { flex:1; }
+.history-name { font-size:14px; font-weight:700; }
+.history-date { font-size:11px; color:var(--muted); margin-top:2px; }
+.history-badge {
+  font-size:10px; font-weight:700;
+  padding:3px 8px; border-radius:20px;
+  background: rgba(77,190,120,0.15);
+  color: var(--green);
+  border:1px solid rgba(77,190,120,0.25);
+}
+
+/* STATS */
+.stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+.stat-card {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  text-align:center;
+}
+.stat-num { font-size:32px; font-weight:900; line-height:1; }
+.stat-label { font-size:11px; color:var(--muted); margin-top:4px; letter-spacing:0.5px; }
+.stat-card.blue .stat-num  { color:var(--blue); }
+.stat-card.green .stat-num { color:var(--green); }
+.stat-card.yellow .stat-num{ color:var(--yellow); }
+.stat-card.purple .stat-num{ color:var(--purple); }
+
+/* WEEK SCHEDULE */
+.week-row {
+  display:grid; grid-template-columns:repeat(7,1fr);
+  gap:5px; margin-bottom:16px;
+}
+.week-day {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:8px 4px;
+  text-align:center;
+}
+.week-day.today-col { border-color:var(--blue); background:rgba(64,224,255,0.07); }
+.week-day.water-col { border-color:rgba(64,224,255,0.4); }
+.week-day-name { font-size:9px; font-weight:700; color:var(--muted); letter-spacing:1px; margin-bottom:6px; text-transform:uppercase; }
+.week-day-icon { font-size:15px; display:block; margin-bottom:3px; }
+.week-day-task { font-size:9px; font-weight:700; line-height:1.3; }
+.week-day.micro-col .week-day-task  { color:var(--green); }
+.week-day.macro-col .week-day-task  { color:var(--sand); }
+.week-day.water-col .week-day-task  { color:var(--blue); }
+.week-day.rest-col .week-day-task   { color:var(--muted); opacity:0.5; }
+
+/* PARAMS */
+.param-list { display:flex; flex-direction:column; gap:10px; }
+.param-item {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px 16px;
+  display:flex; align-items:center; gap:14px;
+}
+.param-icon { font-size:24px; }
+.param-info { flex:1; }
+.param-name { font-size:14px; font-weight:700; }
+.param-val { font-size:18px; font-weight:900; margin-top:2px; }
+.param-note { font-size:11px; color:var(--muted); margin-top:3px; }
+.param-badge {
+  font-size:10px; font-weight:700;
+  padding:3px 8px; border-radius:20px;
+  flex-shrink:0;
+}
+.param-badge.ok   { background:rgba(77,190,120,0.15); color:var(--green); border:1px solid rgba(77,190,120,0.25); }
+.param-badge.warn { background:rgba(255,179,71,0.15);  color:var(--yellow); border:1px solid rgba(255,179,71,0.25); }
+
+/* NOTES */
+.notes-area {
+  width:100%; min-height:120px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:14px;
+  color:var(--white);
+  font-family:'Heebo',sans-serif;
+  font-size:14px;
+  resize:vertical;
+  outline:none;
+  transition: border-color 0.2s;
+}
+.notes-area:focus { border-color: var(--blue); }
+.notes-btn {
+  margin-top:10px;
+  padding:10px 20px;
+  background:var(--blue);
+  color:var(--bg);
+  border:none;
+  border-radius:30px;
+  font-family:'Heebo',sans-serif;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  transition: opacity 0.2s;
+}
+.notes-btn:hover { opacity:0.85; }
+.saved-notes { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+.saved-note {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px 14px;
+}
+.saved-note-date { font-size:11px; color:var(--muted); margin-bottom:4px; }
+.saved-note-text { font-size:13px; line-height:1.6; }
+
+/* TOAST */
+.toast {
+  position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--green); color:var(--bg);
+  padding:10px 20px; border-radius:30px;
+  font-size:13px; font-weight:700;
+  opacity:0; transition: all 0.3s;
+  z-index:999; pointer-events:none;
+  white-space:nowrap;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* BUBBLES */
+.bubbles { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+.bubble {
+  position:absolute; bottom:-40px; border-radius:50%;
+  background:rgba(64,224,255,0.05);
+  border:1px solid rgba(64,224,255,0.1);
+  animation:rise linear infinite;
+}
+.bubble:nth-child(1){ width:12px;height:12px;left:5%;  animation-duration:11s;animation-delay:0s;   }
+.bubble:nth-child(2){ width:7px; height:7px; left:20%; animation-duration:14s;animation-delay:3s;   }
+.bubble:nth-child(3){ width:18px;height:18px;left:40%; animation-duration:9s; animation-delay:1s;   }
+.bubble:nth-child(4){ width:5px; height:5px; left:60%; animation-duration:16s;animation-delay:5s;   }
+.bubble:nth-child(5){ width:10px;height:10px;left:80%; animation-duration:12s;animation-delay:2s;   }
+@keyframes rise {
+  0%  { transform:translateY(0);opacity:0; }
+  10% { opacity:0.7; }
+  90% { opacity:0.3; }
+  100%{ transform:translateY(-105vh);opacity:0; }
+}
+
+/* BOTTOM NAV */
+.bottom-nav {
+  position:fixed; bottom:0; left:0; right:0;
+  background:rgba(7,30,43,0.95);
+  backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);
+  display:flex;
+  z-index:100;
+}
+.bnav-item {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:10px 4px;
+  cursor:pointer;
+  border:none; background:transparent;
+  color:var(--muted);
+  font-family:'Heebo',sans-serif;
+  transition:color 0.2s;
+  gap:3px;
+}
+.bnav-item.active { color:var(--blue); }
+.bnav-icon { font-size:20px; }
+.bnav-label { font-size:10px; font-weight:700; letter-spacing:0.5px; }
+
+.install-btn {
+  background: rgba(64,224,255,0.12);
+  border: 1px solid rgba(64,224,255,0.3);
+  color: var(--blue);
+  border-radius: 30px;
+  padding: 7px 14px;
+  font-family:'Heebo',sans-serif;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 5px;
+}
+.install-btn:hover { background: rgba(64,224,255,0.2); }
+.install-btn.hidden { display: none; }
+
+/* iOS modal */
+.ios-modal {
+  display: none;
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,0.7);
+  align-items: flex-end; justify-content: center;
+  padding: 16px;
+}
+.ios-modal.show { display: flex; }
+.ios-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px 20px;
+  width: 100%; max-width: 400px;
+  text-align: center;
+}
+.ios-card h3 { font-size: 17px; font-weight: 900; margin-bottom: 8px; }
+.ios-card p  { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+.ios-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; text-align: right; }
+.ios-step  { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.ios-step-icon { font-size: 22px; flex-shrink: 0; }
+.ios-close {
+  width: 100%; padding: 12px;
+  background: var(--blue); color: var(--bg);
+  border: none; border-radius: 30px;
+  font-family:'Heebo',sans-serif;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.reset-btn {
+  background:rgba(255,68,102,0.1);
+  border:1px solid rgba(255,68,102,0.25);
+  color:var(--red);
+  border-radius:30px;
+  padding:8px 16px;
+  font-family:'Heebo',sans-serif;
+  font-size:12px; font-weight:700;
+  cursor:pointer;
+  transition:opacity 0.2s;
+}
+.reset-btn:hover { opacity:0.8; }
+
+.empty-state {
+  text-align:center; padding:40px 20px;
+  color:var(--muted); font-size:13px;
+}
+.empty-state .e-icon { font-size:40px; margin-bottom:10px; display:block; }
+</style>
+</head>
+<body>
+
+<div class="bubbles">
+  <div class="bubble"></div><div class="bubble"></div>
+  <div class="bubble"></div><div class="bubble"></div>
+  <div class="bubble"></div>
+</div>
+
+<div class="nav">
+  <div>
+    <div class="nav-title">🐠 <span>אקווריום</span> מנג׳ר</div>
+    <div class="nav-date" id="navDate"></div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button class="install-btn" id="installBtn" onclick="handleInstall()">
+      📲 הוסף למסך
+    </button>
+    <button class="reset-btn" onclick="resetToday()">איפוס יום</button>
+  </div>
+</div>
+
+<!-- PAGE: TODAY -->
+<div class="page active" id="page-today">
+
+  <div style="margin-bottom:16px; margin-top:12px;">
+    <div class="today-header">
+      <div>
+        <div class="today-title" id="todayTitle">משימות היום</div>
+        <div class="today-sub" id="todaySub"></div>
+      </div>
+      <div class="progress-ring-wrap">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle class="progress-ring-bg" cx="32" cy="32" r="27"/>
+          <circle class="progress-ring-fill" id="progressRing" cx="32" cy="32" r="27"
+            stroke-dasharray="169.6" stroke-dashoffset="169.6"/>
+        </svg>
+        <div class="progress-pct" id="progressPct">0%</div>
+      </div>
+    </div>
+
+    <div class="streak-bar">
+      <div class="streak-icon">🔥</div>
+      <div class="streak-info">
+        <div class="streak-num" id="streakNum">0</div>
+        <div class="streak-label">ימים רצופים השלמת כל המשימות</div>
+        <div class="streak-days" id="streakDays"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="task-list" id="taskList"></div>
+
+</div>
+
+<!-- PAGE: WEEK -->
+<div class="page" id="page-week">
+  <div class="section-label" style="margin-top:12px;">לוח שבועי</div>
+  <div class="week-row" id="weekRow"></div>
+
+  <div class="section-label">פרמטרי האקווריום</div>
+  <div class="param-list">
+    <div class="param-item">
+      <div class="param-icon">💨</div>
+      <div class="param-info">
+        <div class="param-name">CO₂</div>
+        <div class="param-val" style="color:var(--green)">13:00 – 21:00</div>
+        <div class="param-note">מסתיים שעה לפני כיבוי האור</div>
+      </div>
+      <div class="param-badge ok">✓ מושלם</div>
+    </div>
+    <div class="param-item">
+      <div class="param-icon">💡</div>
+      <div class="param-info">
+        <div class="param-name">תאורה</div>
+        <div class="param-val" style="color:var(--yellow)">14:00 – 22:00</div>
+        <div class="param-note">8 שעות — אידיאלי לצמחים</div>
+      </div>
+      <div class="param-badge ok">✓ אידיאלי</div>
+    </div>
+    <div class="param-item">
+      <div class="param-icon">💧</div>
+      <div class="param-info">
+        <div class="param-name">החלפת מים</div>
+        <div class="param-val" style="color:var(--blue)">30% — יום ה׳</div>
+        <div class="param-note">אנטי כלור + בקטריה לאחר החלפה</div>
+      </div>
+      <div class="param-badge ok">✓ אידיאלי</div>
+    </div>
+    <div class="param-item">
+      <div class="param-icon">🦐</div>
+      <div class="param-info">
+        <div class="param-name">האכלה</div>
+        <div class="param-val" style="color:var(--red)">5× בשבוע</div>
+        <div class="param-note">כמות של 2 דקות אכילה בלבד</div>
+      </div>
+      <div class="param-badge ok">✓ בסדר</div>
+    </div>
+    <div class="param-item">
+      <div class="param-icon">🌿</div>
+      <div class="param-info">
+        <div class="param-name">דישון</div>
+        <div class="param-val" style="color:var(--sand)">מאקרו + מיקרו לסירוגין</div>
+        <div class="param-note">מיקרו א׳/ג׳/ו׳ · מאקרו ב׳/ד׳</div>
+      </div>
+      <div class="param-badge warn">⚠ הפרד</div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: HISTORY -->
+<div class="page" id="page-history">
+  <div class="section-label" style="margin-top:12px;">סטטיסטיקות</div>
+  <div class="stats-grid">
+    <div class="stat-card blue">
+      <div class="stat-num" id="statTotal">0</div>
+      <div class="stat-label">פעולות בוצעו</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-num" id="statDays">0</div>
+      <div class="stat-label">ימים פעילים</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="stat-num" id="statStreak">0</div>
+      <div class="stat-label">שיא רצף ימים</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="stat-num" id="statWeek">0</div>
+      <div class="stat-label">פעולות השבוע</div>
+    </div>
+  </div>
+
+  <div class="section-label">היסטוריה</div>
+  <div class="history-list" id="historyList">
+    <div class="empty-state">
+      <span class="e-icon">🐡</span>
+      עדיין אין פעולות מתועדות.<br>התחל לסמן משימות!
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: NOTES -->
+<div class="page" id="page-notes">
+  <div class="section-label" style="margin-top:12px;">הוסף הערה</div>
+  <textarea class="notes-area" id="noteInput" placeholder="רשום תצפית, שאלה, או שינוי שביצעת..."></textarea>
+  <button class="notes-btn" onclick="saveNote()">שמור הערה</button>
+
+  <div class="section-label">הערות שמורות</div>
+  <div class="saved-notes" id="savedNotes">
+    <div class="empty-state">
+      <span class="e-icon">📝</span>
+      אין הערות עדיין.
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="bnav-item active" onclick="showPage('today',this)">
+    <span class="bnav-icon">✅</span>
+    <span class="bnav-label">היום</span>
+  </button>
+  <button class="bnav-item" onclick="showPage('week',this)">
+    <span class="bnav-icon">📅</span>
+    <span class="bnav-label">לוח</span>
+  </button>
+  <button class="bnav-item" onclick="showPage('history',this)">
+    <span class="bnav-icon">📊</span>
+    <span class="bnav-label">היסטוריה</span>
+  </button>
+  <button class="bnav-item" onclick="showPage('notes',this)">
+    <span class="bnav-icon">📝</span>
+    <span class="bnav-label">הערות</span>
+  </button>
+</div>
+
+<!-- iOS install modal -->
+<div class="ios-modal" id="iosModal">
+  <div class="ios-card">
+    <h3>🐠 הוסף למסך הבית</h3>
+    <p>כדי להתקין את האפליקציה כקיצור דרך:</p>
+    <div class="ios-steps">
+      <div class="ios-step">
+        <span class="ios-step-icon">⬆️</span>
+        <span>לחץ על כפתור <strong>השיתוף</strong> בתחתית Safari</span>
+      </div>
+      <div class="ios-step">
+        <span class="ios-step-icon">➕</span>
+        <span>בחר <strong>"הוסף למסך הבית"</strong></span>
+      </div>
+      <div class="ios-step">
+        <span class="ios-step-icon">✅</span>
+        <span>לחץ <strong>הוסף</strong> — וזהו!</span>
+      </div>
+    </div>
+    <button class="ios-close" onclick="closeIosModal()">הבנתי!</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────
+const DAY_NAMES = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+const DAY_FULL  = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+// Tasks per weekday (0=Sun .. 6=Sat)
+const WEEK_TASKS = {
+  0: [ // Sunday - א
+    {id:'macro', icon:'🌱', name:'דישון מאקרו',    detail:'כמות מומלצת לפי יצרן',       cat:'macro', time:'בוקר'},
+    {id:'feed',  icon:'🦐', name:'האכלה',          detail:'2 דקות אכילה — לא יותר',     cat:'feed',  time:'17:00'},
+  ],
+  1: [ // Monday - ב
+    {id:'micro', icon:'🔬', name:'דישון מיקרו',    detail:'כמות מומלצת לפי יצרן',       cat:'micro', time:'בוקר'},
+    {id:'feed',  icon:'🦐', name:'האכלה',          detail:'2 דקות אכילה — לא יותר',     cat:'feed',  time:'17:00'},
+  ],
+  2: [ // Tuesday - ג
+    {id:'macro', icon:'🌱', name:'דישון מאקרו',    detail:'כמות מומלצת לפי יצרן',       cat:'macro', time:'בוקר'},
+    {id:'feed',  icon:'🦐', name:'האכלה',          detail:'2 דקות אכילה — לא יותר',     cat:'feed',  time:'17:00'},
+  ],
+  3: [ // Wednesday - ד
+    {id:'micro', icon:'🔬', name:'דישון מיקרו',    detail:'כמות מומלצת לפי יצרן',       cat:'micro', time:'בוקר'},
+    {id:'feed',  icon:'🦐', name:'האכלה',          detail:'2 דקות אכילה — לא יותר',     cat:'feed',  time:'17:00'},
+  ],
+  4: [ // Thursday - ה
+    {id:'water', icon:'💧', name:'החלפת מים 30%',  detail:'שאב מהתחתית עם סיפון',       cat:'water', time:'בכל שעה'},
+    {id:'anti',  icon:'🧪', name:'אנטי כלור',      detail:'מיד לאחר הוספת מים חדשים',   cat:'additive',time:'אחרי החלפה'},
+    {id:'bact',  icon:'🦠', name:'בקטריה',         detail:'להחיות את הסינון הביולוגי',  cat:'additive',time:'אחרי החלפה'},
+    {id:'feed',  icon:'🦐', name:'האכלה',          detail:'2 דקות אכילה — לא יותר',     cat:'feed',  time:'17:00'},
+  ],
+  5: [ // Friday - ו
+    {id:'macro', icon:'🌱', name:'דישון מאקרו',    detail:'כמות מומלצת לפי יצרן',       cat:'macro', time:'בוקר'},
+    {id:'feed',  icon:'🦐', name:'האכלה',          detail:'2 דקות אכילה — לא יותר',     cat:'feed',  time:'17:00'},
+  ],
+  6: [ // Saturday - ש
+    {id:'rest',  icon:'😴', name:'יום מנוחה',      detail:'האקווריום נח — רק תצפית',    cat:'co2',   time:''},
+  ],
+};
+
+const WEEK_SCHEDULE = [
+  {name:'א׳', type:'macro-col', icon:'🌱', task:'מאקרו'},
+  {name:'ב׳', type:'micro-col', icon:'🔬', task:'מיקרו'},
+  {name:'ג׳', type:'macro-col', icon:'🌱', task:'מאקרו'},
+  {name:'ד׳', type:'micro-col', icon:'🔬', task:'מיקרו'},
+  {name:'ה׳', type:'water-col', icon:'💧', task:'החלפת מים'},
+  {name:'ו׳', type:'macro-col', icon:'🌱', task:'מאקרו'},
+  {name:'ש׳', type:'rest-col',  icon:'😴', task:'מנוחה'},
+];
+
+// ─── STORAGE ────────────────────────────────────────────
+function load(key, def) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; }
+  catch { return def; }
+}
+function save(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+// ─── STATE ───────────────────────────────────────────────
+let todayDone   = load('done_' + todayKey(), {});
+let history     = load('aq_history', []);
+let notes       = load('aq_notes', []);
+let streakData  = load('aq_streak', {streak:0, lastFull:'', best:0});
+
+// ─── INIT ────────────────────────────────────────────────
+function init() {
+  // Nav date
+  const now = new Date();
+  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  document.getElementById('navDate').textContent =
+    `יום ${days[now.getDay()]}, ${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}`;
+
+  renderTasks();
+  renderWeek();
+  renderHistory();
+  renderNotes();
+  renderStats();
+}
+
+// ─── TASKS ───────────────────────────────────────────────
+function getTodayTasks() {
+  const dow = new Date().getDay();
+  return WEEK_TASKS[dow] || [];
+}
+
+function renderTasks() {
+  const tasks = getTodayTasks();
+  const list = document.getElementById('taskList');
+  const dow  = new Date().getDay();
+  document.getElementById('todayTitle').textContent =
+    `משימות יום ${DAY_FULL[dow]}`;
+
+  const done  = tasks.filter(t => todayDone[t.id]);
+  const total = tasks.length;
+  const pct   = total ? Math.round(done.length / total * 100) : 0;
+
+  // Progress ring
+  const circ = 169.6;
+  const offset = circ - (pct / 100 * circ);
+  document.getElementById('progressRing').style.strokeDashoffset = offset;
+  document.getElementById('progressPct').textContent = pct + '%';
+  document.getElementById('todaySub').textContent =
+    `${done.length} מתוך ${total} משימות הושלמו`;
+
+  // Streak dots
+  renderStreakDots();
+
+  list.innerHTML = '';
+  tasks.forEach(task => {
+    const isDone = !!todayDone[task.id];
+    const el = document.createElement('div');
+    el.className = `task-item ${task.cat}${isDone ? ' done' : ''}`;
+    el.innerHTML = `
+      <div class="task-check">${isDone ? '✓' : ''}</div>
+      <div class="task-icon">${task.icon}</div>
+      <div class="task-info">
+        <div class="task-name">${task.name}</div>
+        <div class="task-detail">${task.detail}</div>
+        ${isDone && todayDone[task.id].time ? `<div class="done-stamp">✓ בוצע ב-${todayDone[task.id].time}</div>` : ''}
+      </div>
+      ${task.time ? `<div class="task-time">${task.time}</div>` : ''}
+    `;
+    el.onclick = () => toggleTask(task);
+    list.appendChild(el);
+  });
+}
+
+function toggleTask(task) {
+  if (task.id === 'rest') { showToast('יום מנוחה 😴 תצפית בלבד!'); return; }
+
+  if (todayDone[task.id]) {
+    delete todayDone[task.id];
+    showToast('משימה בוטלה');
+  } else {
+    const now = new Date();
+    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    todayDone[task.id] = { time: timeStr };
+
+    // Add to history
+    history.unshift({
+      icon: task.icon,
+      name: task.name,
+      date: formatDate(now),
+      time: timeStr,
+    });
+    if (history.length > 200) history = history.slice(0, 200);
+    save('aq_history', history);
+
+    showToast(`${task.icon} ${task.name} — בוצע!`);
+    checkStreak();
+    renderHistory();
+    renderStats();
+  }
+
+  save('done_' + todayKey(), todayDone);
+  renderTasks();
+}
+
+function checkStreak() {
+  const tasks = getTodayTasks().filter(t => t.id !== 'rest');
+  const allDone = tasks.every(t => todayDone[t.id]);
+  if (allDone) {
+    const today = todayKey();
+    if (streakData.lastFull !== today) {
+      streakData.streak++;
+      streakData.lastFull = today;
+      if (streakData.streak > streakData.best) streakData.best = streakData.streak;
+      save('aq_streak', streakData);
+      showToast(`🔥 רצף ${streakData.streak} ימים!`);
+    }
+  }
+}
+
+function renderStreakDots() {
+  document.getElementById('streakNum').textContent = streakData.streak;
+  const wrap = document.getElementById('streakDays');
+  wrap.innerHTML = '';
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    const dot = document.createElement('div');
+    dot.className = 'streak-dot' + (i === 0 ? ' today' : (load('done_' + key, null) ? ' done' : ''));
+    wrap.appendChild(dot);
+  }
+}
+
+function resetToday() {
+  if (!confirm('לאפס את כל משימות היום?')) return;
+  todayDone = {};
+  save('done_' + todayKey(), {});
+  renderTasks();
+  showToast('יום אופס ✓');
+}
+
+// ─── WEEK ─────────────────────────────────────────────────
+function renderWeek() {
+  const dow = new Date().getDay();
+  const wrap = document.getElementById('weekRow');
+  wrap.innerHTML = '';
+  WEEK_SCHEDULE.forEach((d, i) => {
+    const el = document.createElement('div');
+    el.className = `week-day ${d.type}${i === dow ? ' today-col' : ''}`;
+    el.innerHTML = `
+      <div class="week-day-name">${d.name}</div>
+      <span class="week-day-icon">${d.icon}</span>
+      <div class="week-day-task">${d.task}</div>
+    `;
+    wrap.appendChild(el);
+  });
+}
+
+// ─── HISTORY ──────────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (!history.length) {
+    list.innerHTML = '<div class="empty-state"><span class="e-icon">🐡</span>עדיין אין פעולות מתועדות.<br>התחל לסמן משימות!</div>';
+    return;
+  }
+  list.innerHTML = history.slice(0, 40).map(h => `
+    <div class="history-item">
+      <div class="history-icon">${h.icon}</div>
+      <div class="history-info">
+        <div class="history-name">${h.name}</div>
+        <div class="history-date">${h.date} · ${h.time}</div>
+      </div>
+      <div class="history-badge">בוצע</div>
+    </div>
+  `).join('');
+}
+
+// ─── STATS ────────────────────────────────────────────────
+function renderStats() {
+  document.getElementById('statTotal').textContent  = history.length;
+  document.getElementById('statStreak').textContent = streakData.best;
+
+  // Unique days
+  const days = new Set(history.map(h => h.date));
+  document.getElementById('statDays').textContent = days.size;
+
+  // This week
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+  const weekCount = history.filter(h => {
+    const parts = h.date.split('/');
+    if (parts.length < 3) return false;
+    const d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+    return d >= weekStart;
+  }).length;
+  document.getElementById('statWeek').textContent = weekCount;
+}
+
+// ─── NOTES ────────────────────────────────────────────────
+function saveNote() {
+  const txt = document.getElementById('noteInput').value.trim();
+  if (!txt) return;
+  notes.unshift({ text: txt, date: formatDate(new Date()) });
+  save('aq_notes', notes);
+  document.getElementById('noteInput').value = '';
+  renderNotes();
+  showToast('📝 הערה נשמרה!');
+}
+
+function renderNotes() {
+  const wrap = document.getElementById('savedNotes');
+  if (!notes.length) {
+    wrap.innerHTML = '<div class="empty-state"><span class="e-icon">📝</span>אין הערות עדיין.</div>';
+    return;
+  }
+  wrap.innerHTML = notes.map(n => `
+    <div class="saved-note">
+      <div class="saved-note-date">${n.date}</div>
+      <div class="saved-note-text">${n.text}</div>
+    </div>
+  `).join('');
+}
+
+// ─── UTILS ────────────────────────────────────────────────
+function formatDate(d) {
+  return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'history') { renderHistory(); renderStats(); }
+  if (name === 'notes')   { renderNotes(); }
+}
+
+// ─── INSTALL ──────────────────────────────────────────────
+let deferredPrompt = null;
+
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBtn').classList.remove('hidden');
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  document.getElementById('installBtn').classList.add('hidden');
+  showToast('🎉 האפליקציה הותקנה!');
+});
+
+function handleInstall() {
+  if (isIOS()) {
+    document.getElementById('iosModal').classList.add('show');
+  } else if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  } else {
+    // Fallback — show instructions
+    document.getElementById('iosModal').classList.add('show');
+  }
+}
+
+function closeIosModal() {
+  document.getElementById('iosModal').classList.remove('show');
+}
+
+// ─── START ────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
