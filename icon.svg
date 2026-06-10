@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#071e2b"/>
+      <stop offset="100%" style="stop-color:#0e4a6a"/>
+    </linearGradient>
+    <linearGradient id="waterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a7fa0;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#0a2a3a;stop-opacity:0.1"/>
+    </linearGradient>
+    <linearGradient id="fishGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#40e0ff"/>
+      <stop offset="100%" style="stop-color:#1a9fc0"/>
+    </linearGradient>
+    <linearGradient id="fish2Grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ff4466"/>
+      <stop offset="100%" style="stop-color:#cc2244"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded rect background -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
+
+  <!-- Water shimmer lines -->
+  <ellipse cx="256" cy="180" rx="200" ry="8" fill="rgba(64,224,255,0.06)"/>
+  <ellipse cx="256" cy="220" rx="180" ry="6" fill="rgba(64,224,255,0.04)"/>
+  <ellipse cx="256" cy="260" rx="200" ry="6" fill="rgba(64,224,255,0.04)"/>
+
+  <!-- Tank frame -->
+  <rect x="60" y="120" width="392" height="280" rx="18" fill="none" stroke="rgba(64,224,255,0.25)" stroke-width="6"/>
+  <rect x="60" y="120" width="392" height="280" rx="18" fill="url(#waterGrad)"/>
+
+  <!-- Plants left -->
+  <ellipse cx="110" cy="360" rx="18" ry="30" fill="#1a4a2e" transform="rotate(-10,110,360)"/>
+  <ellipse cx="125" cy="345" rx="15" ry="28" fill="#2d7a4a" transform="rotate(5,125,345)"/>
+  <ellipse cx="100" cy="350" rx="12" ry="22" fill="#4dbe78" transform="rotate(-15,100,350)"/>
+
+  <!-- Plants right -->
+  <ellipse cx="400" cy="360" rx="18" ry="30" fill="#1a4a2e" transform="rotate(10,400,360)"/>
+  <ellipse cx="385" cy="345" rx="15" ry="28" fill="#2d7a4a" transform="rotate(-5,385,345)"/>
+  <ellipse cx="410" cy="350" rx="12" ry="22" fill="#4dbe78" transform="rotate(15,410,350)"/>
+
+  <!-- Red plant -->
+  <ellipse cx="155" cy="368" rx="16" ry="26" fill="#8b1a2e" transform="rotate(-5,155,368)"/>
+  <ellipse cx="168" cy="355" rx="13" ry="22" fill="#c0294a" transform="rotate(8,168,355)"/>
+
+  <!-- Substrate -->
+  <ellipse cx="256" cy="400" rx="196" ry="14" fill="#1a1a2e"/>
+  <ellipse cx="256" cy="398" rx="196" ry="10" fill="#0d1520"/>
+
+  <!-- Main fish (blue - neon tetra style) -->
+  <g transform="translate(200,260)">
+    <!-- body -->
+    <ellipse cx="0" cy="0" rx="42" ry="16" fill="url(#fishGrad)"/>
+    <!-- tail -->
+    <polygon points="-42,0 -62,-14 -62,14" fill="#1a9fc0"/>
+    <!-- neon stripe -->
+    <ellipse cx="5" cy="-2" rx="28" ry="5" fill="#40e0ff" opacity="0.9"/>
+    <!-- red belly stripe -->
+    <ellipse cx="-5" cy="5" rx="20" ry="4" fill="#ff4466" opacity="0.8"/>
+    <!-- eye -->
+    <circle cx="30" cy="-4" r="5" fill="#071e2b"/>
+    <circle cx="31" cy="-5" r="2" fill="white"/>
+    <!-- fin -->
+    <ellipse cx="5" cy="-14" rx="12" ry="6" fill="rgba(64,224,255,0.5)" transform="rotate(-20,5,-14)"/>
+  </g>
+
+  <!-- Second fish (red) -->
+  <g transform="translate(300,310) scale(-1,1)">
+    <ellipse cx="0" cy="0" rx="32" ry="12" fill="url(#fish2Grad)"/>
+    <polygon points="-32,0 -48,-10 -48,10" fill="#cc2244"/>
+    <ellipse cx="5" cy="-2" rx="20" ry="4" fill="#ff6688" opacity="0.8"/>
+    <circle cx="22" cy="-3" r="4" fill="#071e2b"/>
+    <circle cx="23" cy="-4" r="1.5" fill="white"/>
+  </g>
+
+  <!-- Small fish top -->
+  <g transform="translate(260,180)">
+    <ellipse cx="0" cy="0" rx="20" ry="7" fill="#c8a96e"/>
+    <polygon points="-20,0 -30,-7 -30,7" fill="#a08050"/>
+    <circle cx="14" cy="-2" r="3" fill="#071e2b"/>
+    <circle cx="15" cy="-3" r="1" fill="white"/>
+  </g>
+
+  <!-- Bubbles -->
+  <circle cx="180" cy="200" r="5" fill="none" stroke="rgba(64,224,255,0.5)" stroke-width="2"/>
+  <circle cx="195" cy="170" r="3.5" fill="none" stroke="rgba(64,224,255,0.4)" stroke-width="1.5"/>
+  <circle cx="340" cy="210" r="4" fill="none" stroke="rgba(64,224,255,0.4)" stroke-width="1.5"/>
+  <circle cx="325" cy="185" r="2.5" fill="none" stroke="rgba(64,224,255,0.35)" stroke-width="1.5"/>
+
+  <!-- Tank top bar (wood look) -->
+  <rect x="60" y="108" width="392" height="22" rx="8" fill="#5a2d0c"/>
+  <rect x="60" y="108" width="392" height="10" rx="8" fill="#7a3d1a" opacity="0.6"/>
+
+  <!-- Glow effect on border -->
+  <rect x="60" y="120" width="392" height="280" rx="18" fill="none" stroke="rgba(64,224,255,0.15)" stroke-width="12"/>
+</svg>
