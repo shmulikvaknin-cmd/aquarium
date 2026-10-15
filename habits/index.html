@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>לוח בקרה למעקב הרגלים - AI Pro PWA</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0b1120">
+    <meta name="description" content="לוח בקרה אינטראקטיבי למעקב אחרי הרגלים עם סוכן AI אישי">
+    <link rel="manifest" href="manifest.json" id="manifestLink">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+
+    <!-- iOS / Apple PWA Support -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="מעקב הרגלים">
+    <link id="appleTouchIcon" rel="apple-touch-icon" href="icon-192.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <!-- Google Fonts: Rubik -->
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Rubik', sans-serif;
+            background-color: #0b1120;
+            color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.72);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .ai-glow {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(49, 46, 129, 0.45) 100%);
+            border: 1px solid rgba(139, 92, 246, 0.35);
+            box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.2);
+        }
+        .check-btn {
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .check-btn:active {
+            transform: scale(0.86);
+        }
+        .heatmap-cell {
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.25);
+            z-index: 10;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b1120;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 select-none">
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 left-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <div class="max-w-6xl mx-auto space-y-6">
+
+        <!-- Header & Top Actions -->
+        <header class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-card p-6 rounded-2xl shadow-lg">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-l from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+                        לוח בקרה למעקב הרגלים
+                    </h1>
+                    <span class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">AI COACH</span>
+                    <span id="offlineBadge" class="hidden px-2.5 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">אופליין</span>
+                </div>
+                <p id="currentDateDisplay" class="text-slate-400 text-sm mt-1"></p>
+            </div>
+
+            <!-- Action Toolbar -->
+            <div class="flex flex-wrap items-center gap-2.5">
+                <button id="installPwaBtn" onclick="handleInstallClick()" class="px-3.5 py-2 rounded-xl bg-gradient-to-l from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium text-xs md:text-sm shadow-lg shadow-violet-600/25 transition flex items-center gap-1.5">
+                    <span>📲</span>
+                    <span>התקן אפליקציה</span>
+                </button>
+                <button onclick="exportCSV()" class="px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs md:text-sm border border-slate-700 transition flex items-center gap-1.5">
+                    <span>📊</span>
+                    <span>ייצוא CSV</span>
+                </button>
+                <button onclick="exportJSON()" class="px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs md:text-sm border border-slate-700 transition flex items-center gap-1.5">
+                    <span>💾</span>
+                    <span>גיבוי JSON</span>
+                </button>
+                <label class="cursor-pointer px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs md:text-sm border border-slate-700 transition flex items-center gap-1.5">
+                    <span>📂</span>
+                    <span>ייבוא</span>
+                    <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importJSON(event)">
+                </label>
+                <button onclick="resetWeek()" class="px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-rose-950/60 hover:border-rose-700/50 text-slate-300 hover:text-rose-300 text-xs md:text-sm border border-slate-700 transition">
+                    איפוס שבוע
+                </button>
+                <button onclick="toggleModal(true)" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs md:text-sm shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5">
+                    <span>+ הרגל חדש</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Summary Cards -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="glass-card p-5 rounded-2xl flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-slate-400 text-xs">השלמה יומית (היום)</span>
+                        <h2 id="todayPercent" class="text-3xl font-bold text-white mt-1">0%</h2>
+                    </div>
+                    <span class="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 text-xl">🎯</span>
+                </div>
+                <div class="mt-4">
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="todayProgressBar" class="bg-gradient-to-l from-emerald-400 to-cyan-400 h-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p id="todayCountText" class="text-xs text-slate-400 mt-2">0 מתוך 0 יעדים הושלמו היום</p>
+                </div>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-slate-400 text-xs">רצף שיא פעיל</span>
+                        <h2 id="bestStreak" class="text-3xl font-bold text-amber-400 mt-1">0 ימים</h2>
+                    </div>
+                    <span class="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 text-xl">🔥</span>
+                </div>
+                <p id="bestStreakHabit" class="text-xs text-slate-400 mt-4 truncate">סמן יעדים כדי לבנות רצף</p>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl flex flex-col justify-between">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-slate-400 text-xs">ביצוע שבועי כולל</span>
+                        <h2 id="weeklyScore" class="text-3xl font-bold text-cyan-400 mt-1">0%</h2>
+                    </div>
+                    <span class="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 text-xl">📈</span>
+                </div>
+                <p id="weeklyCountText" class="text-xs text-slate-400 mt-4">סה"כ 0 סימונים השבוע</p>
+            </div>
+
+            <div class="glass-card p-5 rounded-2xl flex flex-col justify-between border border-violet-500/20">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="text-slate-400 text-xs">תזכורת יומית אוטומטית</span>
+                        <div class="flex items-center gap-2 mt-1.5">
+                            <input type="time" id="reminderTimeInput" value="20:00" onchange="saveReminderSettings()"
+                                class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-sm text-white focus:outline-none focus:border-violet-400">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="reminderToggle" class="sr-only peer" onchange="toggleReminder(this.checked)">
+                                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-500"></div>
+                            </label>
+                        </div>
+                    </div>
+                    <span class="p-2.5 rounded-xl bg-violet-500/10 text-violet-400 text-xl">🔔</span>
+                </div>
+                <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-800/80">
+                    <span id="reminderStatusText" class="text-[11px] text-slate-400">תזכורות כבויות</span>
+                    <button onclick="sendTestNotification()" class="text-xs text-violet-400 hover:text-violet-300 font-medium underline">
+                        בדיקת התראה
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- AI COACH & WEEKLY INSIGHTS PANEL           -->
+        <!-- ========================================== -->
+        <section class="ai-glow p-6 rounded-2xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-violet-500/20">
+                <div class="flex items-start gap-3.5">
+                    <div class="p-3 rounded-2xl bg-violet-500/20 border border-violet-400/30 text-2xl shrink-0">
+                        🤖
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-lg font-bold text-white">סוכן AI לתובנות ואימון שבועי</h3>
+                            <span id="aiProviderBadge" class="px-2 py-0.5 text-[11px] rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30">מנוע חכם מקומי</span>
+                        </div>
+                        <p class="text-xs text-slate-300 mt-0.5">מנתח דפוסי התמדה, מזהה ימים חלשים וצווארי בקבוק, ומייצר המלצות מותאמות אישית</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="runAiCoachAnalysis()" id="analyzeBtn" class="px-4 py-2.5 rounded-xl bg-gradient-to-l from-violet-500 to-fuchsia-500 hover:from-violet-400 hover:to-fuchsia-400 text-white font-semibold text-xs md:text-sm shadow-lg shadow-violet-500/25 transition flex items-center gap-2">
+                        <span>✨ נתח את השבוע שלי</span>
+                    </button>
+                    <button onclick="copyPromptForClaude()" class="px-3.5 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs md:text-sm border border-slate-600/80 transition flex items-center gap-1.5" title="העתק פרומפט עם כל הנתונים להדבקה ב-Claude או Gemini">
+                        <span>📋</span>
+                        <span>העתק פרומפט ל-Claude</span>
+                    </button>
+                    <button onclick="toggleAiSettingsModal(true)" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-600/80 transition" title="הגדרות מפתח API (Claude / Gemini)">
+                        ⚙️
+                    </button>
+                </div>
+            </div>
+
+            <!-- AI Insights Output Area -->
+            <div id="aiInsightsContainer" class="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Populated dynamically by AI Coach -->
+            </div>
+        </section>
+
+        <!-- Main Grid: Habit Matrix & Chart -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Habit Tracker Table -->
+            <section class="lg:col-span-2 glass-card p-6 rounded-2xl overflow-x-auto">
+                <div class="flex items-center justify-between mb-5">
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">מעקב יעדים שבועי</h3>
+                        <p id="weekRangeLabel" class="text-xs text-slate-400 mt-0.5"></p>
+                    </div>
+                    <span class="text-xs text-slate-400 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+                        מסונכרן אוטומטית למכשיר
+                    </span>
+                </div>
+
+                <table class="w-full text-right border-collapse min-w-[560px]">
+                    <thead>
+                        <tr class="border-b border-slate-700/60 text-slate-400 text-xs">
+                            <th class="pb-3 font-medium w-2/5">הרגל / יעד</th>
+                            <th id="day-header-0" class="pb-3 text-center font-medium">א׳</th>
+                            <th id="day-header-1" class="pb-3 text-center font-medium">ב׳</th>
+                            <th id="day-header-2" class="pb-3 text-center font-medium">ג׳</th>
+                            <th id="day-header-3" class="pb-3 text-center font-medium">ד׳</th>
+                            <th id="day-header-4" class="pb-3 text-center font-medium">ה׳</th>
+                            <th id="day-header-5" class="pb-3 text-center font-medium">ו׳</th>
+                            <th id="day-header-6" class="pb-3 text-center font-medium">ש׳</th>
+                            <th class="pb-3 text-center font-medium">רצף</th>
+                            <th class="pb-3 text-center font-medium"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="habitsTableBody" class="divide-y divide-slate-800/70 text-sm"></tbody>
+                </table>
+            </section>
+
+            <!-- Weekly Streak & Completion Chart -->
+            <section class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-white">תרשים רצף והספק שבועי</h3>
+                    <p class="text-xs text-slate-400 mt-1">הרגלים שהושלמו בכל יום מול קו המגמה</p>
+                </div>
+                <div class="relative h-64 w-full mt-4">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                    <span>יום שיא השבוע: <strong id="bestDayText" class="text-emerald-400">-</strong></span>
+                    <span>ממוצע יומי: <strong id="avgDailyText" class="text-cyan-400">0</strong></span>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- GitHub-Style Activity Heatmap Section -->
+        <section class="glass-card p-6 rounded-2xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                <div>
+                    <h3 class="text-lg font-semibold text-white">מפת חום והתמדה (12 שבועות אחרונים)</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">כל משבצת מייצגת יום פעילות – ככל שהצבע ירוק ובוהק יותר, אחוז השלמת היעדים באותו יום גבוה יותר</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-slate-400">
+                    <span>פחות</span>
+                    <span class="w-3.5 h-3.5 rounded bg-slate-800 border border-slate-700 inline-block"></span>
+                    <span class="w-3.5 h-3.5 rounded bg-emerald-950 border border-emerald-800 inline-block"></span>
+                    <span class="w-3.5 h-3.5 rounded bg-emerald-700 inline-block"></span>
+                    <span class="w-3.5 h-3.5 rounded bg-emerald-500 inline-block"></span>
+                    <span class="w-3.5 h-3.5 rounded bg-emerald-300 shadow-sm shadow-emerald-400/50 inline-block"></span>
+                    <span>יותר</span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto pb-2">
+                <div class="inline-flex gap-2 min-w-full justify-between items-center">
+                    <div class="grid grid-rows-7 gap-1.5 text-[11px] text-slate-400 pl-2 shrink-0">
+                        <span class="h-4 flex items-center">א׳</span>
+                        <span class="h-4 flex items-center">ב׳</span>
+                        <span class="h-4 flex items-center">ג׳</span>
+                        <span class="h-4 flex items-center">ד׳</span>
+                        <span class="h-4 flex items-center">ה׳</span>
+                        <span class="h-4 flex items-center">ו׳</span>
+                        <span class="h-4 flex items-center">ש׳</span>
+                    </div>
+                    <div id="heatmapGrid" class="flex gap-1.5 flex-1 justify-end"></div>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap justify-between items-center text-xs text-slate-400 gap-2">
+                <span id="heatmapHoverInfo" class="text-slate-300 font-medium">רחף או לחץ על משבצת לצפייה בפירוט היומי</span>
+                <span id="totalActiveDaysText">סה"כ ימים פעילים ב-84 הימים האחרונים: 0</span>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Modal for Adding New Habit -->
+    <div id="habitModal" class="fixed inset-0 bg-black/65 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="glass-card bg-slate-900 p-6 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-4">הוספת הרגל חדש</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">שם ההרגל</label>
+                    <input id="newHabitName" type="text" placeholder="למשל: קריאה 20 דקות..." class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-emerald-400">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">אייקון</label>
+                        <select id="newHabitIcon" class="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none">
+                            <option value="🌿">🌿 צמחייה / אקווריום</option>
+                            <option value="💻">💻 קוד / פיתוח</option>
+                            <option value="💧">💧 שתיית מים</option>
+                            <option value="🏋️">🏋️ כושר ותנועה</option>
+                            <option value="📚">📚 למידה וקריאה</option>
+                            <option value="☕">☕ הפסקה / מיינדפולנס</option>
+                            <option value="🏠">🏠 סדר וארגון הבית</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">צבע הדגשה</label>
+                        <select id="newHabitColor" class="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none">
+                            <option value="emerald">ירוק אזמרגד</option>
+                            <option value="cyan">תכלת ציאן</option>
+                            <option value="violet">סגול</option>
+                            <option value="amber">כתום ענבר</option>
+                            <option value="rose">אדום ורד</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="toggleModal(false)" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm hover:bg-slate-700">ביטול</button>
+                <button onclick="addHabit()" class="px-5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-semibold text-sm hover:bg-emerald-400">שמור הרגל</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for AI Coach API Settings -->
+    <div id="aiSettingsModal" class="fixed inset-0 bg-black/65 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="glass-card bg-slate-900 p-6 rounded-2xl w-full max-w-md border border-violet-500/40 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span>🤖</span>
+                    <span>הגדרות סוכן AI (אופציונלי)</span>
+                </h3>
+                <button onclick="toggleAiSettingsModal(false)" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">
+                כברירת מחדל, הלוח משתמש במנוע ניתוח אלגוריתמי מקומי ומהיר. אם תרצה תובנות עומק ממודל שפה חי, בחר ספק והזן מפתח API (המפתח נשמר מקומית בדפדפן שלך בלבד).
+            </p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">ספק AI</label>
+                    <select id="aiProviderSelect" class="w-full px-3 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-violet-400">
+                        <option value="local">⚡ מנוע חכם מקומי (ללא צורך במפתח API)</option>
+                        <option value="claude">🟣 Anthropic Claude (Sonnet)</option>
+                        <option value="gemini">🔵 Google Gemini (gemini-2.5-flash)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">מפתח API (נשמר ב-localStorage בלבד)</label>
+                    <input id="aiApiKeyInput" type="password" placeholder="sk-ant-... או AIzaSy..." class="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-sm focus:outline-none focus:border-violet-400">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="toggleAiSettingsModal(false)" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-sm hover:bg-slate-700">ביטול</button>
+                <button onclick="saveAiConfig()" class="px-5 py-2 rounded-xl bg-violet-500 text-white font-semibold text-sm hover:bg-violet-400">שמור הגדרות</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for PWA Installation Guide -->
+    <div id="installGuideModal" class="fixed inset-0 bg-black/65 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="glass-card bg-slate-900 p-6 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span>📲</span>
+                    <span>התקנת האפליקציה במכשיר</span>
+                </h3>
+                <button onclick="toggleInstallGuide(false)" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div class="text-sm text-slate-300 space-y-3 leading-relaxed">
+                <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                    <strong class="text-emerald-400 block mb-1">🍎 באייפון / אייפד (Safari):</strong>
+                    לחץ על כפתור ה<strong>שיתוף (Share)</strong> בתחתית הדפדפן ובחר ב-<strong>"הוסף למסך הבית" (Add to Home Screen)</strong>.
+                </div>
+                <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700">
+                    <strong class="text-cyan-400 block mb-1">🤖 באנדרואיד / כרום במחשב:</strong>
+                    לחץ על תפריט שלוש הנקודות (⋮) בפינה העליונה ובחר ב-<strong>"התקן אפליקציה"</strong>.
+                </div>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="toggleInstallGuide(false)" class="px-5 py-2 rounded-xl bg-emerald-500 text-slate-950 font-semibold text-sm hover:bg-emerald-400">הבנתי</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DAYS_HEB = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+        const DAYS_FULL_HEB = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+        const STORAGE_KEY = 'habits_dashboard_pro_v2';
+        const REMINDER_KEY = 'habits_reminder_settings_v2';
+        const AI_CONFIG_KEY = 'habits_ai_coach_config_v1';
+        const CLAUDE_MODEL = 'claude-sonnet-5-5';
+
+        const COLOR_MAP = {
+            emerald: 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-emerald-500/30',
+            cyan: 'bg-cyan-500 border-cyan-400 text-slate-950 shadow-cyan-500/30',
+            violet: 'bg-violet-500 border-violet-400 text-white shadow-violet-500/30',
+            amber: 'bg-amber-500 border-amber-400 text-slate-950 shadow-amber-500/30',
+            rose: 'bg-rose-500 border-rose-400 text-white shadow-rose-500/30'
+        };
+
+        // Habit names, icons and AI responses can come from user input, imported files or an API,
+        // so escape them before placing them in innerHTML.
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[ch]));
+        }
+
+        // ==========================================
+        // PWA INITIALIZATION
+        // ==========================================
+        let deferredInstallPrompt = null;
+
+        function setupPWA() {
+            if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            }
+
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredInstallPrompt = e;
+            });
+
+            window.addEventListener('appinstalled', () => {
+                document.getElementById('installPwaBtn').classList.add('hidden');
+            });
+            if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+                document.getElementById('installPwaBtn').classList.add('hidden');
+            }
+
+            const updateOnlineStatus = () => {
+                document.getElementById('offlineBadge').classList.toggle('hidden', navigator.onLine);
+            };
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            updateOnlineStatus();
+
+            // An installed app can stay open across midnight: reload so "today" and the current week stay correct
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && toDateKey(new Date()) !== todayKey) {
+                    location.reload();
+                }
+            });
+        }
+
+        async function handleInstallClick() {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                await deferredInstallPrompt.userChoice;
+                deferredInstallPrompt = null;
+            } else {
+                toggleInstallGuide(true);
+            }
+        }
+
+        function toggleInstallGuide(show) {
+            const modal = document.getElementById('installGuideModal');
+            modal.classList.toggle('hidden', !show);
+            modal.classList.toggle('flex', show);
+        }
+
+        // ==========================================
+        // DATES & DATA ENGINE
+        // ==========================================
+        function toDateKey(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getCurrentWeekDates() {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            const sunday = new Date(now);
+            sunday.setDate(now.getDate() - dayOfWeek);
+
+            const week = [];
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(sunday);
+                d.setDate(sunday.getDate() + i);
+                week.push(d);
+            }
+            return week;
+        }
+
+        const currentWeekDates = getCurrentWeekDates();
+        const todayIndex = new Date().getDay();
+        const todayKey = toDateKey(new Date());
+
+        function createInitialHabits() {
+            const base = [
+                { id: 1, name: 'בדיקת אקווריום, דשן ו-CO2', icon: '🌿', color: 'emerald', history: {} },
+                { id: 2, name: 'כתיבת קוד ופיתוח אוטומציות', icon: '💻', color: 'cyan', history: {} },
+                { id: 3, name: 'שתיית 2 ליטר מים', icon: '💧', color: 'violet', history: {} },
+                { id: 4, name: 'אימון או הליכה (30 דק׳)', icon: '🏋️', color: 'amber', history: {} },
+                { id: 5, name: 'ארגון ותחזוקת הבית', icon: '🏠', color: 'rose', history: {} }
+            ];
+
+            const now = new Date();
+            for (let offset = 60; offset >= 0; offset--) {
+                const d = new Date(now);
+                d.setDate(now.getDate() - offset);
+                const key = toDateKey(d);
+                base.forEach((h, idx) => {
+                    if (offset === 0) {
+                        h.history[key] = idx < 3;
+                    } else {
+                        const seed = (offset * 7 + idx * 13) % 10;
+                        h.history[key] = seed > 3;
+                    }
+                });
+            }
+            return base;
+        }
+
+        let habits = loadHabitsData();
+        let chartInstance = null;
+
+        function loadHabitsData() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                try { return JSON.parse(raw); } catch (e) {}
+            }
+            const initial = createInitialHabits();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+            return initial;
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(habits));
+        }
+
+        function init() {
+            setupPWA();
+            initAiConfig();
+
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDateDisplay').innerText = new Date().toLocaleDateString('he-IL', dateOptions);
+
+            const firstDayStr = currentWeekDates[0].toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
+            const lastDayStr = currentWeekDates[6].toLocaleDateString('he-IL', { day: 'numeric', month: 'short' });
+            document.getElementById('weekRangeLabel').innerText = `שבוע נוכחי: ${firstDayStr} – ${lastDayStr}`;
+
+            currentWeekDates.forEach((dateObj, idx) => {
+                const headerEl = document.getElementById(`day-header-${idx}`);
+                const dayNum = dateObj.getDate();
+                if (idx === todayIndex) {
+                    headerEl.classList.add('text-emerald-400', 'font-bold');
+                    headerEl.innerHTML = `${DAYS_HEB[idx]}<span class="block text-[10px] text-emerald-400 font-normal">${dayNum} (היום)</span>`;
+                } else {
+                    headerEl.innerHTML = `${DAYS_HEB[idx]}<span class="block text-[10px] text-slate-500 font-normal">${dayNum}</span>`;
+                }
+            });
+
+            initReminderSystem();
+            refreshAll();
+        }
+
+        function refreshAll() {
+            renderTable();
+            updateStatsAndChart();
+            renderHeatmap();
+            renderLocalAiInsights(); // Automatically keep local insights fresh
+        }
+
+        function calculateStreak(habit) {
+            let streak = 0;
+            const now = new Date();
+            for (let i = 0; i < 365; i++) {
+                const d = new Date(now);
+                d.setDate(now.getDate() - i);
+                const key = toDateKey(d);
+                if (habit.history && habit.history[key]) {
+                    streak++;
+                } else {
+                    if (i === 0) continue;
+                    break;
+                }
+            }
+            return streak;
+        }
+
+        // ==========================================
+        // AI COACH ENGINE (LOCAL + CLAUDE + GEMINI)
+        // ==========================================
+        let aiConfig = { provider: 'local', apiKey: '' };
+
+        function initAiConfig() {
+            const saved = localStorage.getItem(AI_CONFIG_KEY);
+            if (saved) {
+                try { aiConfig = JSON.parse(saved); } catch (e) {}
+            }
+            document.getElementById('aiProviderSelect').value = aiConfig.provider || 'local';
+            document.getElementById('aiApiKeyInput').value = aiConfig.apiKey || '';
+            updateAiBadge();
+        }
+
+        function updateAiBadge() {
+            const badge = document.getElementById('aiProviderBadge');
+            const names = {
+                local: 'מנוע חכם מקומי',
+                claude: 'מחובר ל-Claude API',
+                gemini: 'מחובר ל-Gemini API'
+            };
+            badge.innerText = names[aiConfig.provider] || names.local;
+        }
+
+        function toggleAiSettingsModal(show) {
+            const modal = document.getElementById('aiSettingsModal');
+            modal.classList.toggle('hidden', !show);
+            modal.classList.toggle('flex', show);
+        }
+
+        function saveAiConfig() {
+            aiConfig.provider = document.getElementById('aiProviderSelect').value;
+            aiConfig.apiKey = document.getElementById('aiApiKeyInput').value.trim();
+            localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(aiConfig));
+            updateAiBadge();
+            toggleAiSettingsModal(false);
+            showToast('הגדרות סוכן ה-AI נשמרו בהצלחה!', 'violet');
+        }
+
+        // Gather structured analytics for the AI engine
+        function buildWeeklyAnalyticsPayload() {
+            const daysPassed = todayIndex + 1; // Number of days elapsed in current week (1 to 7)
+            const dailyScores = currentWeekDates.slice(0, daysPassed).map((dateObj, idx) => {
+                const key = toDateKey(dateObj);
+                const count = habits.filter(h => h.history && h.history[key]).length;
+                return { dayName: DAYS_FULL_HEB[idx], count, pct: habits.length ? Math.round((count / habits.length) * 100) : 0 };
+            });
+
+            const habitStats = habits.map(h => {
+                let weekDone = 0;
+                currentWeekDates.slice(0, daysPassed).forEach(d => {
+                    if (h.history && h.history[toDateKey(d)]) weekDone++;
+                });
+                const rate = daysPassed > 0 ? Math.round((weekDone / daysPassed) * 100) : 0;
+                const doneToday = !!(h.history && h.history[todayKey]);
+                return {
+                    name: h.name,
+                    icon: h.icon,
+                    streak: calculateStreak(h),
+                    weekDone,
+                    daysPassed,
+                    rate,
+                    doneToday
+                };
+            });
+
+            return { daysPassed, dailyScores, habitStats };
+        }
+
+        // Smart Local Algorithmic Coach (Instant, works offline & without API key)
+        function renderLocalAiInsights() {
+            const container = document.getElementById('aiInsightsContainer');
+            if (habits.length === 0) {
+                container.innerHTML = `<div class="col-span-3 text-center text-slate-400 text-sm py-4">הוסף הרגלים ללוח כדי שסוכן ה-AI יוכל לנתח את הביצועים שלך.</div>`;
+                return;
+            }
+
+            const { daysPassed, dailyScores, habitStats } = buildWeeklyAnalyticsPayload();
+
+            // 1. Pattern & Day Analysis
+            const sortedDays = [...dailyScores].sort((a, b) => b.pct - a.pct);
+            const strongestDay = sortedDays[0];
+            const weakestDay = sortedDays[sortedDays.length - 1];
+
+            let patternText = '';
+            if (strongestDay && weakestDay && strongestDay.pct !== weakestDay.pct) {
+                patternText = `היום החזק ביותר שלך השבוע הוא <strong>יום ${strongestDay.dayName} (${strongestDay.pct}%)</strong>, בעוד שב<strong>יום ${weakestDay.dayName} (${weakestDay.pct}%)</strong> נרשמה ירידה בקצב. מומלץ להצמיד משימות של יום ${weakestDay.dayName} לשעת בוקר קבועה.`;
+            } else {
+                patternText = `אתה שומר על קצב יציב ואחיד לאורך ימי השבוע הנוכחי (${strongestDay ? strongestDay.pct : 0}%). המשך לשמר את העוגנים היומיים שלך!`;
+            }
+
+            // 2. Bottleneck vs Star Habit
+            const sortedHabits = [...habitStats].sort((a, b) => b.rate - a.rate);
+            const starHabit = sortedHabits[0];
+            const bottleneckHabit = sortedHabits[sortedHabits.length - 1];
+
+            let habitInsightText = '';
+            if (bottleneckHabit && bottleneckHabit.rate < 60 && starHabit !== bottleneckHabit) {
+                habitInsightText = `ההרגל המוביל שלך הוא <strong>"${escapeHtml(starHabit.name)}" (${starHabit.rate}%)</strong>. מנגד, <strong>"${escapeHtml(bottleneckHabit.name)}" (${bottleneckHabit.rate}%)</strong> מתפקד כצוואר בקבוק השבוע – נסה להקטין את משך הביצוע שלו ל-5 דקות כדי להקל על ההתחלה.`;
+            } else if (bottleneckHabit && bottleneckHabit.rate < 60) {
+                habitInsightText = `<strong>"${escapeHtml(bottleneckHabit.name)}" (${bottleneckHabit.rate}%)</strong> דורש חיזוק השבוע – נסה להקטין את משך הביצוע שלו ל-5 דקות כדי להקל על ההתחלה.`;
+            } else {
+                habitInsightText = `ביצועים מעולים! כל ההרגלים שלך מעל רף ה-60% השבוע, בהובלת <strong>"${escapeHtml(starHabit.name)}"</strong> עם רצף של ${starHabit.streak} ימים.`;
+            }
+
+            // 3. Immediate Actionable Focus for Today (Streaks at risk)
+            const streaksAtRisk = habitStats.filter(h => !h.doneToday && h.streak >= 2);
+            const pendingToday = habitStats.filter(h => !h.doneToday);
+
+            let actionText = '';
+            if (streaksAtRisk.length > 0) {
+                const names = streaksAtRisk.map(h => `${escapeHtml(h.icon)} <strong>${escapeHtml(h.name)}</strong> (רצף של ${h.streak} ימים)`).join(', ');
+                actionText = `⚠️ <strong>הגנה על רצף:</strong> אל תפספס היום את ${names} – סימון שלהם עכשיו ישמור על המומנטום שבנית!`;
+            } else if (pendingToday.length > 0) {
+                actionText = `נותרו לך <strong>${pendingToday.length} יעדים</strong> להשלמת 100% יומי. התחל מהיעד המהיר ביותר: ${escapeHtml(pendingToday[0].icon)} <strong>${escapeHtml(pendingToday[0].name)}</strong>.`;
+            } else {
+                actionText = `🏆 <strong>יום מושלם!</strong> השלמת 100% מהיעדים שלך להיום. הרצף השבועי שלך בשיאו!`;
+            }
+
+            container.innerHTML = `
+                <div class="bg-slate-900/75 border border-slate-700/80 p-4 rounded-xl space-y-1.5">
+                    <div class="flex items-center gap-2 text-cyan-400 text-xs font-semibold">
+                        <span>📊</span>
+                        <span>זיהוי דפוסים שבועיים</span>
+                    </div>
+                    <p class="text-xs md:text-sm text-slate-200 leading-relaxed">${patternText}</p>
+                </div>
+
+                <div class="bg-slate-900/75 border border-slate-700/80 p-4 rounded-xl space-y-1.5">
+                    <div class="flex items-center gap-2 text-amber-400 text-xs font-semibold">
+                        <span>🔍</span>
+                        <span>ניתוח התמדה וצווארי בקבוק</span>
+                    </div>
+                    <p class="text-xs md:text-sm text-slate-200 leading-relaxed">${habitInsightText}</p>
+                </div>
+
+                <div class="bg-slate-900/75 border border-emerald-500/30 p-4 rounded-xl space-y-1.5">
+                    <div class="flex items-center gap-2 text-emerald-400 text-xs font-semibold">
+                        <span>🎯</span>
+                        <span>המלצת מיקוד להיום</span>
+                    </div>
+                    <p class="text-xs md:text-sm text-slate-200 leading-relaxed">${actionText}</p>
+                </div>
+            `;
+        }
+
+        function generatePromptText() {
+            const { daysPassed, dailyScores, habitStats } = buildWeeklyAnalyticsPayload();
+            return `אתה מאמן אישי (AI Coach) להתמדה ופרודוקטיביות. נתח את נתוני מעקב ההרגלים שלי לשבוע הנוכחי (${daysPassed} ימים חלפו השבוע) ותן לי 3 תובנות קצרות ומעשיות בעברית:
+1. דפוס הביצוע לאורך ימי השבוע.
+2. הרגל מצטיין מול הרגל שדורש חיזוק (צוואר בקבוק) ואיך לשפר אותו.
+3. משימת מיקוד מרכזית להיום כדי לשמור על הרצפים.
+
+נתוני ימי השבוע:
+${dailyScores.map(d => `- יום ${d.dayName}: ${d.pct}% (${d.count}/${habits.length})`).join('\n')}
+
+נתוני ההרגלים שלי:
+${habitStats.map(h => `- ${h.icon} ${h.name}: בוצע ${h.weekDone}/${h.daysPassed} ימים השבוע (${h.rate}%), רצף נוכחי: ${h.streak} ימים, בוצע היום: ${h.doneToday ? 'כן' : 'לא'}`).join('\n')}`;
+        }
+
+        function copyPromptForClaude() {
+            const promptText = generatePromptText();
+            navigator.clipboard.writeText(promptText).then(() => {
+                showToast('הפרומפט עם כל נתוני השבוע הועתק! הדבק אותו ב-Claude או Gemini 📋', 'violet');
+            }).catch(() => {
+                showToast('לא ניתן להעתיק ללוח בדפדפן זה.', 'rose');
+            });
+        }
+
+        async function runAiCoachAnalysis() {
+            const btn = document.getElementById('analyzeBtn');
+            const container = document.getElementById('aiInsightsContainer');
+
+            if (aiConfig.provider === 'local' || !aiConfig.apiKey) {
+                btn.innerHTML = '<span>⏳ מנתח נתונים...</span>';
+                setTimeout(() => {
+                    renderLocalAiInsights();
+                    btn.innerHTML = '<span>✨ נתח את השבוע שלי</span>';
+                    showToast('ניתוח הנתונים השבועי עודכן!', 'violet');
+                }, 350);
+                return;
+            }
+
+            if (!navigator.onLine) {
+                renderLocalAiInsights();
+                showToast('אין חיבור לאינטרנט – הוצג ניתוח מקומי חכם במקום.', 'amber');
+                return;
+            }
+
+            // Live API Call (Claude or Gemini)
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ מפיק תובנות AI...</span>';
+            const prompt = generatePromptText();
+
+            try {
+                let aiResponseText = '';
+
+                if (aiConfig.provider === 'claude') {
+                    const res = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': aiConfig.apiKey,
+                            'anthropic-version': '2023-06-01',
+                            'anthropic-dangerous-direct-browser-access': 'true'
+                        },
+                        body: JSON.stringify({
+                            model: CLAUDE_MODEL,
+                            max_tokens: 1024,
+                            messages: [{ role: 'user', content: prompt }]
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error?.message || 'Claude API Error');
+                    aiResponseText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+
+                } else if (aiConfig.provider === 'gemini') {
+                    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-goog-api-key': aiConfig.apiKey
+                        },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error?.message || 'Gemini API Error');
+                    aiResponseText = data.candidates[0].content.parts.map(p => p.text || '').join('\n');
+                }
+
+                container.innerHTML = `
+                    <div class="col-span-1 md:col-span-3 bg-slate-900/85 border border-violet-500/40 p-5 rounded-xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-violet-300">✨ דוח אימון אישי (${escapeHtml(aiConfig.provider.toUpperCase())})</span>
+                            <button onclick="renderLocalAiInsights()" class="text-xs text-slate-400 hover:text-white underline">חזרה לתצוגת כרטיסים</button>
+                        </div>
+                        <div class="text-sm text-slate-100 whitespace-pre-line leading-relaxed select-text">${escapeHtml(aiResponseText)}</div>
+                    </div>
+                `;
+                showToast('דוח ה-AI הופק בהצלחה!', 'emerald');
+
+            } catch (err) {
+                console.error(err);
+                renderLocalAiInsights();
+                showToast(`שגיאת חיבור ל-API (${err.message}) – הוצג ניתוח מקומי חכם במקום.`, 'amber');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>✨ נתח את השבוע שלי</span>';
+            }
+        }
+
+        // ==========================================
+        // TABLE, CHART & HEATMAP RENDERING
+        // ==========================================
+        function renderTable() {
+            const tbody = document.getElementById('habitsTableBody');
+            tbody.innerHTML = '';
+
+            habits.forEach((habit) => {
+                const streak = calculateStreak(habit);
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition group';
+
+                let daysHtml = '';
+                currentWeekDates.forEach((dateObj, dayIdx) => {
+                    const dateKey = toDateKey(dateObj);
+                    const done = !!(habit.history && habit.history[dateKey]);
+                    const activeColor = COLOR_MAP[habit.color] || COLOR_MAP.emerald;
+                    const isTodayCol = dayIdx === todayIndex ? 'ring-1 ring-emerald-500/50' : '';
+
+                    daysHtml += `
+                        <td class="py-3.5 text-center">
+                            <button onclick="toggleDay(${Number(habit.id)}, '${dateKey}')"
+                                class="check-btn w-8 h-8 rounded-lg border inline-flex items-center justify-center ${isTodayCol} ${
+                                    done
+                                    ? `${activeColor} shadow-md font-bold`
+                                    : 'bg-slate-800/80 border-slate-700 text-transparent hover:border-slate-500'
+                                }">
+                                ✓
+                            </button>
+                        </td>
+                    `;
+                });
+
+                tr.innerHTML = `
+                    <td class="py-3.5 pl-4 font-medium text-slate-200 flex items-center gap-3">
+                        <span class="text-xl bg-slate-800 p-2 rounded-xl border border-slate-700/60">${escapeHtml(habit.icon)}</span>
+                        <span>${escapeHtml(habit.name)}</span>
+                    </td>
+                    ${daysHtml}
+                    <td class="py-3.5 text-center">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            streak >= 3 ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-400'
+                        }">
+                            🔥 ${streak}
+                        </span>
+                    </td>
+                    <td class="py-3.5 text-center">
+                        <button onclick="deleteHabit(${Number(habit.id)})" class="opacity-60 md:opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 transition px-2" title="מחק הרגל">
+                            ✕
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleDay(habitId, dateKey) {
+            const habit = habits.find(h => h.id === habitId);
+            if (habit) {
+                if (!habit.history) habit.history = {};
+                habit.history[dateKey] = !habit.history[dateKey];
+                saveData();
+                refreshAll();
+            }
+        }
+
+        function updateStatsAndChart() {
+            const totalHabits = habits.length;
+            const completedToday = habits.filter(h => h.history && h.history[todayKey]).length;
+            const todayPct = totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0;
+            document.getElementById('todayPercent').innerText = `${todayPct}%`;
+            document.getElementById('todayProgressBar').style.width = `${todayPct}%`;
+            document.getElementById('todayCountText').innerText = `${completedToday} מתוך ${totalHabits} יעדים הושלמו היום`;
+
+            let bestStreakVal = 0;
+            let bestHabitName = 'אין רצף פעיל';
+            habits.forEach(h => {
+                const s = calculateStreak(h);
+                if (s > bestStreakVal) {
+                    bestStreakVal = s;
+                    bestHabitName = h.name;
+                }
+            });
+            document.getElementById('bestStreak').innerText = `${bestStreakVal} ימים`;
+            document.getElementById('bestStreakHabit').innerText = bestStreakVal > 0 ? `מוביל: ${bestHabitName}` : 'סמן יעדים כדי לבנות רצף';
+
+            const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
+            let totalChecks = 0;
+
+            currentWeekDates.forEach((dateObj, idx) => {
+                const key = toDateKey(dateObj);
+                habits.forEach(h => {
+                    if (h.history && h.history[key]) {
+                        dailyCounts[idx]++;
+                        totalChecks++;
+                    }
+                });
+            });
+
+            const maxWeeklyPossible = totalHabits * 7;
+            const weeklyPct = maxWeeklyPossible > 0 ? Math.round((totalChecks / maxWeeklyPossible) * 100) : 0;
+            document.getElementById('weeklyScore').innerText = `${weeklyPct}%`;
+            document.getElementById('weeklyCountText').innerText = `סה"כ ${totalChecks} מתוך ${maxWeeklyPossible} סימונים השבוע`;
+
+            const maxDayVal = Math.max(...dailyCounts);
+            const bestDayIdx = dailyCounts.indexOf(maxDayVal);
+            document.getElementById('bestDayText').innerText = maxDayVal > 0 ? `יום ${DAYS_HEB[bestDayIdx]} (${maxDayVal})` : '-';
+            document.getElementById('avgDailyText').innerText = (totalChecks / (todayIndex + 1)).toFixed(1);
+
+            renderChart(dailyCounts, totalHabits);
+        }
+
+        function renderChart(dailyCounts, maxHabits) {
+            if (typeof Chart === 'undefined') return; // CDN not available (first load offline)
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: DAYS_HEB,
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'קו מגמה',
+                            data: dailyCounts,
+                            borderColor: '#22d3ee',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#22d3ee',
+                            pointRadius: 4,
+                            tension: 0.35
+                        },
+                        {
+                            type: 'bar',
+                            label: 'הרגלים שהושלמו',
+                            data: dailyCounts,
+                            backgroundColor: dailyCounts.map((_, idx) =>
+                                idx === todayIndex ? 'rgba(16, 185, 129, 0.85)' : 'rgba(51, 65, 85, 0.7)'
+                            ),
+                            borderRadius: 8,
+                            barThickness: 22
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            rtl: true,
+                            backgroundColor: '#1e293b',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#34d399',
+                            callbacks: {
+                                label: (context) => ` הושלמו: ${context.raw} מתוך ${maxHabits}`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: Math.max(maxHabits, 1),
+                            ticks: { stepSize: 1, color: '#94a3b8' },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                        },
+                        x: {
+                            ticks: { color: '#cbd5e1', font: { family: 'Rubik', weight: '500' } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderHeatmap() {
+            const grid = document.getElementById('heatmapGrid');
+            grid.innerHTML = '';
+
+            const totalHabits = habits.length;
+            const numWeeks = 12;
+            let activeDaysCount = 0;
+
+            const currentSunday = currentWeekDates[0];
+            const startSunday = new Date(currentSunday);
+            startSunday.setDate(currentSunday.getDate() - (numWeeks - 1) * 7);
+
+            for (let w = 0; w < numWeeks; w++) {
+                const weekCol = document.createElement('div');
+                weekCol.className = 'grid grid-rows-7 gap-1.5 flex-1';
+
+                for (let d = 0; d < 7; d++) {
+                    const cellDate = new Date(startSunday);
+                    cellDate.setDate(startSunday.getDate() + w * 7 + d);
+                    const dateKey = toDateKey(cellDate);
+
+                    let completed = 0;
+                    habits.forEach(h => {
+                        if (h.history && h.history[dateKey]) completed++;
+                    });
+
+                    if (completed > 0) activeDaysCount++;
+
+                    const ratio = totalHabits > 0 ? completed / totalHabits : 0;
+                    let colorClass = 'bg-slate-800/90 border border-slate-700/60';
+                    if (ratio > 0 && ratio <= 0.34) colorClass = 'bg-emerald-950 border border-emerald-800';
+                    else if (ratio > 0.34 && ratio <= 0.67) colorClass = 'bg-emerald-700';
+                    else if (ratio > 0.67 && ratio < 1) colorClass = 'bg-emerald-500';
+                    else if (ratio === 1 && totalHabits > 0) colorClass = 'bg-emerald-300 shadow-sm shadow-emerald-400/50';
+
+                    if (cellDate > new Date()) {
+                        colorClass = 'bg-slate-900/40 border border-slate-800/40 opacity-40';
+                    }
+
+                    const isToday = dateKey === todayKey ? 'ring-2 ring-cyan-400' : '';
+                    const formattedDate = cellDate.toLocaleDateString('he-IL', { weekday: 'short', day: 'numeric', month: 'short' });
+
+                    const cell = document.createElement('div');
+                    cell.className = `heatmap-cell h-4 min-w-[16px] rounded ${colorClass} ${isToday} cursor-pointer`;
+                    const showInfo = () => {
+                        document.getElementById('heatmapHoverInfo').innerHTML =
+                            `<span class="text-emerald-400">${formattedDate}</span>: הושלמו <strong>${completed} מתוך ${totalHabits}</strong> יעדים (${Math.round(ratio * 100)}%)`;
+                    };
+                    cell.onmouseenter = showInfo;
+                    cell.onclick = showInfo;
+                    weekCol.appendChild(cell);
+                }
+                grid.appendChild(weekCol);
+            }
+
+            document.getElementById('totalActiveDaysText').innerText =
+                `סה"כ ימים פעילים ב-84 הימים האחרונים: ${activeDaysCount}`;
+        }
+
+        // ==========================================
+        // EXPORT / IMPORT / REMINDERS / CRUD
+        // ==========================================
+        function exportJSON() {
+            const backup = { version: 2, exportedAt: new Date().toISOString(), habits };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `habits_backup_${todayKey}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('קובץ הגיבוי (JSON) הורד בהצלחה!', 'emerald');
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    const importedHabits = Array.isArray(parsed) ? parsed : parsed.habits;
+                    if (!Array.isArray(importedHabits)) throw new Error('Invalid format');
+
+                    habits = importedHabits
+                        .filter(h => h && typeof h === 'object' && h.name)
+                        .map((h, idx) => ({
+                            id: Number.isFinite(Number(h.id)) ? Number(h.id) : Date.now() + idx,
+                            name: String(h.name),
+                            icon: String(h.icon || '🌿'),
+                            color: COLOR_MAP[h.color] ? h.color : 'emerald',
+                            history: (h.history && typeof h.history === 'object') ? h.history : {}
+                        }));
+                    saveData();
+                    refreshAll();
+                    showToast('הנתונים שוחזרו בהצלחה מהגיבוי!', 'emerald');
+                } catch (err) {
+                    showToast('שגיאה בקריאת קובץ הגיבוי. ודא שזהו קובץ JSON תקין.', 'rose');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function exportCSV() {
+            let csv = '﻿';
+            const headers = ['שם ההרגל', ...currentWeekDates.map((d, i) => `יום ${DAYS_HEB[i]} (${toDateKey(d)})`), 'רצף נוכחי'];
+            csv += headers.join(',') + '\n';
+
+            habits.forEach(h => {
+                const row = [
+                    `"${h.name.replace(/"/g, '""')}"`,
+                    ...currentWeekDates.map(d => (h.history && h.history[toDateKey(d)]) ? 'בוצע' : 'לא בוצע'),
+                    calculateStreak(h)
+                ];
+                csv += row.join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `habits_weekly_${todayKey}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('קובץ ה-CSV לאקסל הורד בהצלחה!', 'cyan');
+        }
+
+        let reminderSettings = { enabled: false, time: '20:00', lastNotifiedDate: null };
+
+        function initReminderSystem() {
+            const saved = localStorage.getItem(REMINDER_KEY);
+            if (saved) {
+                try { reminderSettings = JSON.parse(saved); } catch (e) {}
+            }
+            document.getElementById('reminderTimeInput').value = reminderSettings.time || '20:00';
+            document.getElementById('reminderToggle').checked = !!reminderSettings.enabled;
+            updateReminderStatusUI();
+            setInterval(checkScheduledReminder, 30000);
+        }
+
+        function saveReminderSettings() {
+            reminderSettings.time = document.getElementById('reminderTimeInput').value;
+            localStorage.setItem(REMINDER_KEY, JSON.stringify(reminderSettings));
+            updateReminderStatusUI();
+        }
+
+        async function toggleReminder(enabled) {
+            if (enabled && 'Notification' in window) {
+                if (Notification.permission === 'default') {
+                    await Notification.requestPermission();
+                }
+            }
+            reminderSettings.enabled = enabled;
+            saveReminderSettings();
+            showToast(enabled ? `תזכורת יומית הופעלה לשעה ${reminderSettings.time}` : 'תזכורת יומית כובתה', 'violet');
+        }
+
+        function updateReminderStatusUI() {
+            const statusEl = document.getElementById('reminderStatusText');
+            if (reminderSettings.enabled) {
+                statusEl.innerText = `פעיל • כל יום ב-${reminderSettings.time}`;
+                statusEl.className = 'text-[11px] text-emerald-400 font-medium';
+            } else {
+                statusEl.innerText = 'תזכורות כבויות';
+                statusEl.className = 'text-[11px] text-slate-400';
+            }
+        }
+
+        // Note: reminders fire only while the app is open (no push server is involved).
+        function checkScheduledReminder() {
+            if (!reminderSettings.enabled) return;
+            const now = new Date();
+            const currentHM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const nowKey = toDateKey(now);
+
+            if (currentHM >= reminderSettings.time && reminderSettings.lastNotifiedDate !== nowKey) {
+                reminderSettings.lastNotifiedDate = nowKey;
+                localStorage.setItem(REMINDER_KEY, JSON.stringify(reminderSettings));
+                triggerHabitNotification();
+            }
+        }
+
+        function sendTestNotification() {
+            triggerHabitNotification(true);
+        }
+
+        function triggerHabitNotification(isTest = false) {
+            const pendingHabits = habits.filter(h => !(h.history && h.history[todayKey]));
+            const title = isTest ? '🔔 בדיקת תזכורת הרגלים' : '⏰ זמן להשלים את היעדים היומיים!';
+            const body = pendingHabits.length > 0
+                ? `נותרו לך ${pendingHabits.length} הרגלים להיום: ${pendingHabits.map(h => h.name).join(', ')}`
+                : 'כל הכבוד! השלמת את כל היעדים שלך להיום 🎉';
+
+            showToast(`${title} — ${body}`, 'violet');
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const options = { body, dir: 'rtl', lang: 'he', icon: 'icon-192.png', badge: 'icon-192.png' };
+                if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then(reg => reg.showNotification(title, options));
+                } else {
+                    new Notification(title, options);
+                }
+            }
+        }
+
+        function showToast(message, color = 'emerald') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const borderColors = {
+                emerald: 'border-emerald-500/50 bg-slate-900/95 text-emerald-300',
+                cyan: 'border-cyan-500/50 bg-slate-900/95 text-cyan-300',
+                violet: 'border-violet-500/50 bg-slate-900/95 text-violet-300',
+                amber: 'border-amber-500/50 bg-slate-900/95 text-amber-300',
+                rose: 'border-rose-500/50 bg-slate-900/95 text-rose-300'
+            };
+            toast.className = `pointer-events-auto p-4 rounded-xl border shadow-2xl backdrop-blur-md text-xs md:text-sm font-medium transition-all duration-300 ${borderColors[color] || borderColors.emerald}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4500);
+        }
+
+        function toggleModal(show) {
+            const modal = document.getElementById('habitModal');
+            modal.classList.toggle('hidden', !show);
+            modal.classList.toggle('flex', show);
+            if (show) document.getElementById('newHabitName').focus();
+        }
+
+        function addHabit() {
+            const nameInput = document.getElementById('newHabitName');
+            const icon = document.getElementById('newHabitIcon').value;
+            const color = document.getElementById('newHabitColor').value;
+            const name = nameInput.value.trim();
+
+            if (!name) return;
+
+            habits.push({ id: Date.now(), name, icon, color, history: {} });
+            nameInput.value = '';
+            toggleModal(false);
+            saveData();
+            refreshAll();
+            showToast(`ההרגל "${name}" נוסף בהצלחה!`, 'emerald');
+        }
+
+        function deleteHabit(id) {
+            const habit = habits.find(h => h.id === id);
+            if (!habit || !confirm(`למחוק את ההרגל "${habit.name}" כולל כל ההיסטוריה שלו?`)) return;
+            habits = habits.filter(h => h.id !== id);
+            saveData();
+            refreshAll();
+            showToast('ההרגל הוסר מהלוח', 'rose');
+        }
+
+        function resetWeek() {
+            if (confirm('האם לאפס את הסימונים של השבוע הנוכחי? (היסטוריית השבועות הקודמים תישמר)')) {
+                currentWeekDates.forEach(d => {
+                    const key = toDateKey(d);
+                    habits.forEach(h => {
+                        if (h.history) h.history[key] = false;
+                    });
+                });
+                saveData();
+                refreshAll();
+                showToast('סימוני השבוע הנוכחי אופסו', 'amber');
+            }
+        }
+
+        // Close modals on Escape, submit new habit on Enter
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                toggleModal(false);
+                toggleAiSettingsModal(false);
+                toggleInstallGuide(false);
+            }
+        });
+        document.getElementById('newHabitName').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') addHabit();
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>
